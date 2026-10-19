@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sherry Sun – Portfolio</title>
+  <link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Karla:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <h1 class="sr">Sherry Sun, portfolio</h1>
+  <canvas id="gl"></canvas>
+  <div class="vig"></div>
+  <aside class="hello" aria-label="Welcome">
+    <svg class="hello-leaf" viewBox="0 0 64 64" aria-hidden="true">
+      <path fill="#d4543a" d="M32 4c2 14 18 22 26 28-10 4-20 14-26 28-6-14-16-24-26-28C14 26 30 18 32 4z"/>
+      <path fill="none" stroke="rgba(40,12,10,.45)" stroke-width="2" stroke-linecap="round" d="M32 12v36M32 24l-10-6M32 24l10-6M32 36l-12-5M32 36l12-5"/>
+    </svg>
+    <p>Hey! I'm Sherry, welcome to my portfolio where I display my proudest projects :)</p>
+  </aside>
+  <footer class="foot">
+    <p class="id">
+      <span class="name">Sherry Sun</span>
+      <span class="role">HBSc Computer Science @UofT</span>
+    </p>
+    <nav class="links" aria-label="Contact">
+      <a href="mailto:sher.sun@mail.utoronto.ca">Email</a>
+      <a href="https://www.linkedin.com/in/shersun/">LinkedIn</a>
+      <a href="https://github.com/shersxn">GitHub</a>
+    </nav>
+  </footer>
+  <div id="view" role="dialog" aria-modal="true" aria-labelledby="t">
+    <svg class="veins" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <path d="M50 0V100M50 25L20 8M50 25L80 8M50 48L12 26M50 48L88 26M50 70L18 52M50 70L82 52" stroke="rgba(0,0,0,.25)" stroke-width=".5" fill="none"/>
+    </svg>
+    <div class="tint"></div>
+    <div class="vc">
+      <div class="in">
+        <h2 id="t"></h2>
+        <p class="award" id="aw"></p>
+        <p class="tech" id="tc"></p>
+        <figure class="demo" id="df" hidden>
+          <button type="button" class="demo-btn" id="db" aria-label="Expand demo image">
+            <img id="dm" alt="">
+            <span class="demo-hint">Expand</span>
+          </button>
+        </figure>
+        <p class="sum" id="sum"></p>
+        <div class="row">
+          <span id="lk"></span>
+          <button class="close" id="cl">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="zoom" class="zoom" hidden role="dialog" aria-modal="true" aria-label="Expanded demo">
+    <button type="button" class="zoom-close" id="zc">Close</button>
+    <img id="zi" alt="">
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

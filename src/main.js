@@ -256,8 +256,8 @@ try {
         for (let col = 0; col < cols && out.length < count; col++) {
           const x = -20 + (col + 0.5) * (40 / cols) + (rnd() - 0.5) * 1.8;
           const z = -4.5 - (row + 0.5) * (40 / rows) + (rnd() - 0.5) * 1.8;
-          // keep a clear center lane for the vertical project leaves
-          if (Math.abs(x) < 3.4 && z > -15) continue;
+          // keep a clear lane for the zigzag project leaves
+          if (Math.abs(x) < 4.2 && z > -20) continue;
           out.push([x, z]);
         }
       }
@@ -364,15 +364,14 @@ try {
   }
 
   function camDist() {
-    if (isPortrait()) return 8.6;
+    if (isPortrait()) return 7.4;
     const aspect = innerWidth / Math.max(innerHeight, 1);
     if (aspect < 1.1) return 7.2;
     return 6;
   }
 
-  // Front → back order for the mobile vertical path
+  // Front → back order for the mobile vertical path (screen top → bottom)
   const mobileLeafOrder = [...P.keys()].sort((a, b) => P[b].pos[1] - P[a].pos[1]);
-  const mobileZig = [-0.9, 1.0, -0.55, 1.1, 0];
 
   const L = P.map((p, i) => {
     const m = new T.Mesh(
@@ -411,12 +410,14 @@ try {
 
   function placeLeaves() {
     if (isPortrait()) {
-      const zNear = -1.8;
-      const zFar = -13.2;
+      // Zigzag: top/near = left, then right, alternating down the path
+      const zNear = -0.6;
+      const zFar = -18.5;
+      const xAmp = 2.8;
       const n = mobileLeafOrder.length;
       mobileLeafOrder.forEach((pi, rank) => {
         const t = n <= 1 ? 0 : rank / (n - 1);
-        L[pi].m.position.x = mobileZig[rank] ?? 0;
+        L[pi].m.position.x = (rank % 2 === 0 ? -1 : 1) * xAmp;
         L[pi].m.position.z = zNear + (zFar - zNear) * t;
       });
       return;
@@ -432,7 +433,7 @@ try {
     const w = innerWidth;
     const h = innerHeight;
     R.setSize(w, h, false);
-    const fov = isPortrait() ? 58 : w / h < 0.75 ? 62 : 55;
+    const fov = isPortrait() ? 64 : w / h < 0.75 ? 62 : 55;
     cam.fov = fov;
     cam.aspect = w / h;
     cam.updateProjectionMatrix();
@@ -534,17 +535,17 @@ try {
       py += (ty - py) * damp;
     }
     const portrait = isPortrait();
-    const pan = portrait ? 0.45 : isMobile ? 0.7 : 1.6;
-    const camY = portrait ? 2.45 - py * 0.25 : 2.1 - py * 0.35;
+    const pan = portrait ? 0.35 : isMobile ? 0.7 : 1.6;
+    const camY = portrait ? 2.8 - py * 0.2 : 2.1 - py * 0.35;
     cam0.position.set(px * pan, camY + Math.sin(t * 0.5) * 0.03, camDist());
-    cam0.lookAt(px * (portrait ? 0.15 : isMobile ? 0.35 : 0.8), portrait ? 0.35 : 0.5, portrait ? -11 : -10);
+    cam0.lookAt(px * (portrait ? 0.1 : isMobile ? 0.35 : 0.8), portrait ? 0.2 : 0.5, portrait ? -14 : -10);
     const e = pr * pr * (3 - 2 * pr);
     cam.position.lerpVectors(cam0.position, cur >= 0 ? ep : cam0.position, e);
     cam.quaternion.copy(cam0.quaternion);
     if (cur >= 0) cam.quaternion.slerp(eq, e);
     const edgeX = isMobile ? 56 : 24;
     const edgeY = isMobile ? 96 : 28;
-    const sMul = portrait ? 0.82 : 1;
+    const sMul = portrait ? 0.72 : 1;
     L.forEach((l, i) => {
       const on = i === hov && cur < 0;
       l.h += ((on ? 1 : 0) - l.h) * 0.15;

@@ -355,6 +355,11 @@ try {
     return innerWidth / Math.max(innerHeight, 1) < 0.85;
   }
 
+  function isLandscapePhone() {
+    const aspect = innerWidth / Math.max(innerHeight, 1);
+    return !isPortrait() && (innerHeight <= 520 || (isMobile && aspect >= 1.15));
+  }
+
   function layoutScale() {
     const aspect = innerWidth / Math.max(innerHeight, 1);
     if (aspect < 0.65) return 0.52;
@@ -365,6 +370,7 @@ try {
 
   function camDist() {
     if (isPortrait()) return 7.4;
+    if (isLandscapePhone()) return 6.5;
     const aspect = innerWidth / Math.max(innerHeight, 1);
     if (aspect < 1.1) return 7.2;
     return 6;
@@ -372,6 +378,8 @@ try {
 
   // Front → back order for the mobile vertical path (screen top → bottom)
   const mobileLeafOrder = [...P.keys()].sort((a, b) => P[b].pos[1] - P[a].pos[1]);
+  // Left → right for landscape phone
+  const landscapeLeafOrder = [...P.keys()].sort((a, b) => P[a].pos[0] - P[b].pos[0]);
 
   const L = P.map((p, i) => {
     const m = new T.Mesh(
@@ -410,15 +418,28 @@ try {
 
   function placeLeaves() {
     if (isPortrait()) {
-      // Zigzag: top/near = left, then right, alternating down the path
+      // Zigzag: near/bottom left, then right, alternating toward far/top
+      // Depth stops biased so Cradle Guard & Night City (both on the left) stay apart
       const zNear = -0.6;
-      const zFar = -18.5;
+      const zFar = -20;
       const xAmp = 2.8;
-      const n = mobileLeafOrder.length;
+      const depthT = [0, 0.2, 0.36, 0.55, 1];
       mobileLeafOrder.forEach((pi, rank) => {
-        const t = n <= 1 ? 0 : rank / (n - 1);
+        const t = depthT[rank] ?? rank / Math.max(mobileLeafOrder.length - 1, 1);
         L[pi].m.position.x = (rank % 2 === 0 ? -1 : 1) * xAmp;
         L[pi].m.position.z = zNear + (zFar - zNear) * t;
+      });
+      return;
+    }
+    if (isLandscapePhone()) {
+      // Wide even fan that fits a short landscape viewport
+      const xMin = -6.2;
+      const xMax = 6.2;
+      const n = landscapeLeafOrder.length;
+      landscapeLeafOrder.forEach((pi, rank) => {
+        const t = n <= 1 ? 0.5 : rank / (n - 1);
+        L[pi].m.position.x = xMin + (xMax - xMin) * t;
+        L[pi].m.position.z = -3.4 - Math.abs(t - 0.5) * 3.2;
       });
       return;
     }
@@ -429,17 +450,27 @@ try {
     });
   }
 
+  function syncChrome() {
+    document.body.classList.toggle("portrait", isPortrait());
+    document.body.classList.toggle("landscape-phone", isLandscapePhone());
+  }
+
   function size() {
     const w = innerWidth;
     const h = innerHeight;
     R.setSize(w, h, false);
-    const fov = isPortrait() ? 64 : w / h < 0.75 ? 62 : 55;
+    let fov = 55;
+    if (isPortrait()) fov = 64;
+    else if (isLandscapePhone()) fov = 50;
+    else if (w / h < 0.75) fov = 62;
     cam.fov = fov;
     cam.aspect = w / h;
     cam.updateProjectionMatrix();
     placeLeaves();
+    syncChrome();
   }
   addEventListener("resize", size);
+  addEventListener("orientationchange", () => setTimeout(size, 120));
   if (window.visualViewport) {
     visualViewport.addEventListener("resize", size);
   }
@@ -535,17 +566,22 @@ try {
       py += (ty - py) * damp;
     }
     const portrait = isPortrait();
-    const pan = portrait ? 0.35 : isMobile ? 0.7 : 1.6;
-    const camY = portrait ? 2.8 - py * 0.2 : 2.1 - py * 0.35;
+    const landPhone = isLandscapePhone();
+    const pan = portrait ? 0.35 : landPhone ? 1.1 : isMobile ? 0.7 : 1.6;
+    const camY = portrait ? 2.8 - py * 0.2 : landPhone ? 1.9 - py * 0.2 : 2.1 - py * 0.35;
     cam0.position.set(px * pan, camY + Math.sin(t * 0.5) * 0.03, camDist());
-    cam0.lookAt(px * (portrait ? 0.1 : isMobile ? 0.35 : 0.8), portrait ? 0.2 : 0.5, portrait ? -14 : -10);
+    cam0.lookAt(
+      px * (portrait ? 0.1 : landPhone ? 0.55 : isMobile ? 0.35 : 0.8),
+      portrait ? 0.2 : landPhone ? 0.4 : 0.5,
+      portrait ? -14 : landPhone ? -8 : -10
+    );
     const e = pr * pr * (3 - 2 * pr);
     cam.position.lerpVectors(cam0.position, cur >= 0 ? ep : cam0.position, e);
     cam.quaternion.copy(cam0.quaternion);
     if (cur >= 0) cam.quaternion.slerp(eq, e);
-    const edgeX = isMobile ? 56 : 24;
-    const edgeY = isMobile ? 96 : 28;
-    const sMul = portrait ? 0.72 : 1;
+    const edgeX = landPhone ? 72 : isMobile ? 56 : 24;
+    const edgeY = landPhone ? 36 : isMobile ? 96 : 28;
+    const sMul = portrait ? 0.72 : landPhone ? 0.8 : 1;
     L.forEach((l, i) => {
       const on = i === hov && cur < 0;
       l.h += ((on ? 1 : 0) - l.h) * 0.15;

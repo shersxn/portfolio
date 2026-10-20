@@ -550,6 +550,77 @@ canvas {
   }
 }
 
+/* Phone rotated sideways — keep chrome compact so the scene stays readable */
+@media (orientation: landscape) and (max-height: 520px) {
+  .hello {
+    top: calc(8px + env(safe-area-inset-top, 0px));
+    bottom: auto;
+    left: calc(8px + env(safe-area-inset-left, 0px));
+    right: auto;
+    max-width: min(220px, 34vw);
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .hello-leaf {
+    width: 18px;
+    height: 18px;
+  }
+
+  .hello p {
+    font-size: 0.72rem;
+    line-height: 1.35;
+  }
+
+  .foot {
+    left: auto;
+    right: calc(8px + env(safe-area-inset-right, 0px));
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    align-items: flex-end;
+    gap: 6px;
+    max-width: min(280px, 48vw);
+    padding: 0;
+  }
+
+  .name {
+    font-size: 1rem;
+  }
+
+  .role {
+    font-size: 0.72rem;
+  }
+
+  .links {
+    gap: 6px;
+    justify-content: flex-end;
+  }
+
+  .links a {
+    padding: 6px 11px;
+    font-size: 0.8rem;
+    min-height: 34px;
+  }
+
+  .lab {
+    font-size: 0.7rem;
+    padding: 4px 9px;
+    max-width: min(26vw, 140px);
+  }
+
+  .in {
+    padding:
+      calc(14px + env(safe-area-inset-top, 0px))
+      calc(18px + env(safe-area-inset-right, 0px))
+      calc(14px + env(safe-area-inset-bottom, 0px))
+      calc(18px + env(safe-area-inset-left, 0px));
+  }
+
+  .demo img,
+  .demo.fit img {
+    max-height: min(46vh, 220px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   #view,
   .vc,

@@ -65,10 +65,11 @@ zi.addEventListener("click", (e) => e.stopPropagation());
 try {
   const T = THREE;
   const cv = document.getElementById("gl");
-  const R = new T.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
-  R.setPixelRatio(Math.min(devicePixelRatio, 2));
+  const isMobile = matchMedia("(max-width: 720px), (pointer: coarse)").matches;
+  const R = new T.WebGLRenderer({ canvas: cv, antialias: !isMobile, alpha: true, powerPreference: isMobile ? "low-power" : "default" });
+  R.setPixelRatio(Math.min(devicePixelRatio, isMobile ? 1.25 : 2));
   R.shadowMap.enabled = true;
-  R.shadowMap.type = T.PCFSoftShadowMap;
+  R.shadowMap.type = isMobile ? T.BasicShadowMap : T.PCFSoftShadowMap;
   R.toneMapping = T.ACESFilmicToneMapping;
   R.toneMappingExposure = 1.15;
 
@@ -83,7 +84,7 @@ try {
   sun.target.position.set(0, 0, -8);
   sc.add(sun, sun.target);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(isMobile ? 1024 : 2048, isMobile ? 1024 : 2048);
   const sc2 = sun.shadow.camera;
   sc2.left = -32;
   sc2.right = 32;
@@ -120,7 +121,8 @@ try {
     return 0.06 * Math.sin(x * 0.7) * Math.cos(z * 0.6) + 0.04 * Math.sin(x * 1.9 + z * 1.3);
   }
 
-  const gg = new T.PlaneGeometry(120, 120, 160, 160);
+  const gSeg = isMobile ? 72 : 160;
+  const gg = new T.PlaneGeometry(120, 120, gSeg, gSeg);
   gg.rotateX(-Math.PI / 2);
   const gp = gg.attributes.position;
   for (let q3 = 0; q3 < gp.count; q3++) gp.setY(q3, gh(gp.getX(q3), gp.getZ(q3)));
@@ -223,8 +225,8 @@ try {
     m.receiveShadow = true;
     sc.add(m);
   }
-  litter(lg, 1100);
-  litter(mg, 800);
+  litter(lg, isMobile ? 500 : 1100);
+  litter(mg, isMobile ? 350 : 800);
 
   const bc = document.createElement("canvas");
   bc.width = 64;
@@ -240,8 +242,9 @@ try {
   bt.wrapS = bt.wrapT = T.RepeatWrapping;
   bt.repeat.set(2, 3);
   const bm = new T.MeshLambertMaterial({ map: bt });
-  const NT = 70;
-  const can = new T.InstancedMesh(cg, lm, NT * 210);
+  const NT = isMobile ? 32 : 70;
+  const canopyN = isMobile ? 90 : 210;
+  const can = new T.InstancedMesh(cg, lm, NT * canopyN);
   let ci = 0;
   for (let n = 0; n < NT; n++) {
     let x = (rnd() - 0.5) * 50;
@@ -250,23 +253,24 @@ try {
     const h = 5 + rnd() * 4;
     const rb = 0.35 + rnd() * 0.2;
     const y0 = gh(x, z);
-    const tr = new T.Mesh(new T.CylinderGeometry(rb * 0.55, rb, h, 10), bm);
+    const tr = new T.Mesh(new T.CylinderGeometry(rb * 0.55, rb, h, isMobile ? 6 : 10), bm);
     tr.position.set(x, y0 + h / 2, z);
-    tr.castShadow = true;
+    tr.castShadow = !isMobile;
     tr.receiveShadow = true;
     sc.add(tr);
-    for (let k = 0; k < 3; k++) {
+    const branchN = isMobile ? 1 : 3;
+    for (let k = 0; k < branchN; k++) {
       const br = new T.Mesh(new T.CylinderGeometry(0.05, 0.1, 2.4, 6), bm);
       const ang = rnd() * 6.28;
       br.position.set(x + Math.cos(ang) * 0.9, y0 + h * (0.65 + rnd() * 0.25), z + Math.sin(ang) * 0.9);
       br.rotation.set(Math.sin(ang) * 0.7, 0, -Math.cos(ang) * 0.7);
-      br.castShadow = true;
+      br.castShadow = !isMobile;
       sc.add(br);
     }
     const R0 = 2.2 + rnd() * 1.6;
     const cy = y0 + h + 0.5;
     const tone = rnd();
-    for (let j = 0; j < 210; j++, ci++) {
+    for (let j = 0; j < canopyN; j++, ci++) {
       const u = rnd() * 6.28;
       const v = Math.acos(2 * rnd() - 1);
       const rr = R0 * Math.cbrt(rnd());
@@ -282,12 +286,13 @@ try {
       can.setColorAt(ci, new T.Color(pal[Math.floor((tone * 3 + rnd() * 4) % pal.length)]).multiplyScalar(0.6 + rnd() * 0.7));
     }
   }
-  can.castShadow = true;
+  can.castShadow = !isMobile;
   sc.add(can);
 
-  const fl = new T.InstancedMesh(cg, lm, 130);
+  const fallN = isMobile ? 45 : 130;
+  const fl = new T.InstancedMesh(cg, lm, fallN);
   const F = [];
-  for (let i = 0; i < 130; i++) {
+  for (let i = 0; i < fallN; i++) {
     F.push({
       x: (rnd() - 0.5) * 30,
       y: rnd() * 9,
@@ -316,6 +321,21 @@ try {
   const ep = new T.Vector3();
   const c2 = new T.PerspectiveCamera();
 
+  function layoutScale() {
+    const aspect = innerWidth / Math.max(innerHeight, 1);
+    if (aspect < 0.65) return 0.52;
+    if (aspect < 0.85) return 0.68;
+    if (aspect < 1.1) return 0.85;
+    return 1;
+  }
+
+  function camDist() {
+    const aspect = innerWidth / Math.max(innerHeight, 1);
+    if (aspect < 0.65) return 9.2;
+    if (aspect < 0.85) return 7.8;
+    return 6;
+  }
+
   const L = P.map((p, i) => {
     const m = new T.Mesh(
       pg,
@@ -327,7 +347,7 @@ try {
         emissiveIntensity: 0,
       })
     );
-    m.castShadow = true;
+    m.castShadow = !isMobile;
     m.receiveShadow = true;
     m.rotation.order = "YXZ";
     m.rotation.x = -Math.PI / 2;
@@ -351,14 +371,28 @@ try {
     return { m, b, h: 0 };
   });
 
+  function placeLeaves() {
+    const ls = layoutScale();
+    L.forEach((l, i) => {
+      l.m.position.x = P[i].pos[0] * ls;
+      l.m.position.z = P[i].pos[1] * (ls < 0.75 ? 0.9 : 1);
+    });
+  }
+
   function size() {
     const w = innerWidth;
     const h = innerHeight;
     R.setSize(w, h, false);
+    const fov = w / h < 0.75 ? 62 : 55;
+    cam.fov = fov;
     cam.aspect = w / h;
     cam.updateProjectionMatrix();
+    placeLeaves();
   }
   addEventListener("resize", size);
+  if (window.visualViewport) {
+    visualViewport.addEventListener("resize", size);
+  }
   size();
 
   function pick(e) {
@@ -376,7 +410,14 @@ try {
       cv.style.cursor = hov >= 0 ? "pointer" : "default";
     }
   });
+  cv.addEventListener("pointerup", (e) => {
+    if (e.pointerType === "touch" && tgt === 0) {
+      const i = pick(e);
+      if (i >= 0) openLeaf(i);
+    }
+  });
   cv.addEventListener("click", (e) => {
+    if (e.pointerType === "touch") return;
     const i = pick(e);
     if (i >= 0) openLeaf(i);
   });
@@ -386,7 +427,8 @@ try {
     cur = i;
     fill(P[i]);
     const l = L[i].m;
-    c2.position.set(l.position.x, 2.6, l.position.z + 0.001);
+    const lift = innerWidth / Math.max(innerHeight, 1) < 0.75 ? 3.1 : 2.6;
+    c2.position.set(l.position.x, lift, l.position.z + 0.001);
     c2.up.set(0, 0, -1);
     c2.lookAt(l.position.x, 0, l.position.z);
     ep.copy(c2.position);
@@ -438,15 +480,19 @@ try {
       cur = -1;
     }
     if (!reduce) {
-      px += (tx - px) * 0.05;
-      py += (ty - py) * 0.05;
+      const damp = isMobile ? 0.03 : 0.05;
+      px += (tx - px) * damp;
+      py += (ty - py) * damp;
     }
-    cam0.position.set(px * 1.6, 2.1 - py * 0.4 + Math.sin(t * 0.5) * 0.03, 6);
-    cam0.lookAt(px * 0.8, 0.5, -10);
+    const pan = isMobile ? 0.7 : 1.6;
+    cam0.position.set(px * pan, 2.1 - py * 0.35 + Math.sin(t * 0.5) * 0.03, camDist());
+    cam0.lookAt(px * (isMobile ? 0.35 : 0.8), 0.5, -10);
     const e = pr * pr * (3 - 2 * pr);
     cam.position.lerpVectors(cam0.position, cur >= 0 ? ep : cam0.position, e);
     cam.quaternion.copy(cam0.quaternion);
     if (cur >= 0) cam.quaternion.slerp(eq, e);
+    const edgeX = isMobile ? 56 : 24;
+    const edgeY = isMobile ? 96 : 28;
     L.forEach((l, i) => {
       const on = i === hov && cur < 0;
       l.h += ((on ? 1 : 0) - l.h) * 0.15;
@@ -458,7 +504,9 @@ try {
       vec.y += 0.1;
       vec.z += P[i].s * 1.15;
       vec.project(cam);
-      l.b.style.transform = `translate(${(vec.x * 0.5 + 0.5) * innerWidth}px,${(-vec.y * 0.5 + 0.5) * innerHeight}px) translate(-50%,0)`;
+      const sx = Math.min(innerWidth - edgeX, Math.max(edgeX, (vec.x * 0.5 + 0.5) * innerWidth));
+      const sy = Math.min(innerHeight - edgeY, Math.max(edgeY, (-vec.y * 0.5 + 0.5) * innerHeight));
+      l.b.style.transform = `translate(${sx}px,${sy}px) translate(-50%,0)`;
       l.b.style.opacity = pr > 0.02 || vec.z > 1 ? 0 : 1;
       l.b.tabIndex = pr > 0.02 ? -1 : 0;
     });

@@ -242,14 +242,44 @@ try {
   bt.wrapS = bt.wrapT = T.RepeatWrapping;
   bt.repeat.set(2, 3);
   const bm = new T.MeshLambertMaterial({ map: bt });
-  const NT = isMobile ? 32 : 70;
+  const NT = isMobile ? 36 : 70;
   const canopyN = isMobile ? 90 : 210;
   const can = new T.InstancedMesh(cg, lm, NT * canopyN);
   let ci = 0;
+
+  function treePositions(count) {
+    const out = [];
+    if (isMobile) {
+      const cols = 6;
+      const rows = 8;
+      for (let row = 0; row < rows && out.length < count; row++) {
+        for (let col = 0; col < cols && out.length < count; col++) {
+          const x = -20 + (col + 0.5) * (40 / cols) + (rnd() - 0.5) * 1.8;
+          const z = -4.5 - (row + 0.5) * (40 / rows) + (rnd() - 0.5) * 1.8;
+          // keep a clear center lane for the vertical project leaves
+          if (Math.abs(x) < 3.4 && z > -15) continue;
+          out.push([x, z]);
+        }
+      }
+      while (out.length < count) {
+        const side = rnd() < 0.5 ? -1 : 1;
+        out.push([side * (7 + rnd() * 14), -6 - rnd() * 34]);
+      }
+    } else {
+      for (let i = 0; i < count; i++) {
+        let x = (rnd() - 0.5) * 50;
+        const z = -3 - rnd() * 45;
+        if (Math.abs(x) < 1.5 && z > -12) x += x < 0 ? -3 : 3;
+        out.push([x, z]);
+      }
+    }
+    return out;
+  }
+
+  const treePos = treePositions(NT);
   for (let n = 0; n < NT; n++) {
-    let x = (rnd() - 0.5) * 50;
-    const z = -3 - rnd() * 45;
-    if (Math.abs(x) < 1.5 && z > -12) x += x < 0 ? -3 : 3;
+    const x = treePos[n][0];
+    const z = treePos[n][1];
     const h = 5 + rnd() * 4;
     const rb = 0.35 + rnd() * 0.2;
     const y0 = gh(x, z);
@@ -321,6 +351,10 @@ try {
   const ep = new T.Vector3();
   const c2 = new T.PerspectiveCamera();
 
+  function isPortrait() {
+    return innerWidth / Math.max(innerHeight, 1) < 0.85;
+  }
+
   function layoutScale() {
     const aspect = innerWidth / Math.max(innerHeight, 1);
     if (aspect < 0.65) return 0.52;
@@ -330,11 +364,15 @@ try {
   }
 
   function camDist() {
+    if (isPortrait()) return 8.6;
     const aspect = innerWidth / Math.max(innerHeight, 1);
-    if (aspect < 0.65) return 9.2;
-    if (aspect < 0.85) return 7.8;
+    if (aspect < 1.1) return 7.2;
     return 6;
   }
+
+  // Front → back order for the mobile vertical path
+  const mobileLeafOrder = [...P.keys()].sort((a, b) => P[b].pos[1] - P[a].pos[1]);
+  const mobileZig = [-0.9, 1.0, -0.55, 1.1, 0];
 
   const L = P.map((p, i) => {
     const m = new T.Mesh(
@@ -372,10 +410,21 @@ try {
   });
 
   function placeLeaves() {
+    if (isPortrait()) {
+      const zNear = -1.8;
+      const zFar = -13.2;
+      const n = mobileLeafOrder.length;
+      mobileLeafOrder.forEach((pi, rank) => {
+        const t = n <= 1 ? 0 : rank / (n - 1);
+        L[pi].m.position.x = mobileZig[rank] ?? 0;
+        L[pi].m.position.z = zNear + (zFar - zNear) * t;
+      });
+      return;
+    }
     const ls = layoutScale();
     L.forEach((l, i) => {
       l.m.position.x = P[i].pos[0] * ls;
-      l.m.position.z = P[i].pos[1] * (ls < 0.75 ? 0.9 : 1);
+      l.m.position.z = P[i].pos[1];
     });
   }
 
@@ -383,7 +432,7 @@ try {
     const w = innerWidth;
     const h = innerHeight;
     R.setSize(w, h, false);
-    const fov = w / h < 0.75 ? 62 : 55;
+    const fov = isPortrait() ? 58 : w / h < 0.75 ? 62 : 55;
     cam.fov = fov;
     cam.aspect = w / h;
     cam.updateProjectionMatrix();
@@ -484,19 +533,22 @@ try {
       px += (tx - px) * damp;
       py += (ty - py) * damp;
     }
-    const pan = isMobile ? 0.7 : 1.6;
-    cam0.position.set(px * pan, 2.1 - py * 0.35 + Math.sin(t * 0.5) * 0.03, camDist());
-    cam0.lookAt(px * (isMobile ? 0.35 : 0.8), 0.5, -10);
+    const portrait = isPortrait();
+    const pan = portrait ? 0.45 : isMobile ? 0.7 : 1.6;
+    const camY = portrait ? 2.45 - py * 0.25 : 2.1 - py * 0.35;
+    cam0.position.set(px * pan, camY + Math.sin(t * 0.5) * 0.03, camDist());
+    cam0.lookAt(px * (portrait ? 0.15 : isMobile ? 0.35 : 0.8), portrait ? 0.35 : 0.5, portrait ? -11 : -10);
     const e = pr * pr * (3 - 2 * pr);
     cam.position.lerpVectors(cam0.position, cur >= 0 ? ep : cam0.position, e);
     cam.quaternion.copy(cam0.quaternion);
     if (cur >= 0) cam.quaternion.slerp(eq, e);
     const edgeX = isMobile ? 56 : 24;
     const edgeY = isMobile ? 96 : 28;
+    const sMul = portrait ? 0.82 : 1;
     L.forEach((l, i) => {
       const on = i === hov && cur < 0;
       l.h += ((on ? 1 : 0) - l.h) * 0.15;
-      const s = P[i].s * (1 + l.h * 0.08 + (i === cur ? e * 2.7 : 0));
+      const s = P[i].s * sMul * (1 + l.h * 0.08 + (i === cur ? e * 2.7 : 0));
       l.m.scale.setScalar(s);
       l.m.position.y = 0.2 + l.h * 0.25;
       l.m.material.emissiveIntensity = l.h * 0.45;
